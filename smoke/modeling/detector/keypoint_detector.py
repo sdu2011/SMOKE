@@ -19,7 +19,7 @@ class KeypointDetector(nn.Module):
         super(KeypointDetector, self).__init__()
 
         self.backbone = build_backbone(cfg)
-        self.heads = build_heads(cfg, self.backbone.out_channels)
+        self.heads = build_heads(cfg, self.backbone.out_channels) #创建detection head类
 
     def forward(self, images, targets=None):
         """

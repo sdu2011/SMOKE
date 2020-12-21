@@ -12,14 +12,14 @@ class SMOKEHead(nn.Module):
 
         self.cfg = cfg.clone()
         self.predictor = make_smoke_predictor(cfg, in_channels)
-        self.loss_evaluator = make_smoke_loss_evaluator(cfg)
+        self.loss_evaluator = make_smoke_loss_evaluator(cfg) #损失计算类
         self.post_processor = make_smoke_post_processor(cfg)
 
     def forward(self, features, targets=None):
         x = self.predictor(features)
 
         if self.training:
-            loss_heatmap, loss_regression = self.loss_evaluator(x, targets)
+            loss_heatmap, loss_regression = self.loss_evaluator(x, targets) #调用loss_evaluator.__call__()计算损失
 
             return {}, dict(hm_loss=loss_heatmap,
                             reg_loss=loss_regression, )
