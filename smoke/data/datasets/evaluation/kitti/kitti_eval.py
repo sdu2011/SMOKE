@@ -58,7 +58,7 @@ def do_kitti_detection_evaluation(dataset,
     command = "./evaluate_object_3d_offline {} {}".format(label_dir, output_dir)
     output = subprocess.check_output(command, shell=True, universal_newlines=True).strip()
     logger.info(output)
-    os.chdir('../tools')
+    os.chdir('{}/tools'.format(project_dir))
 
 
 def generate_kitti_3d_detection(prediction, predict_txt):
