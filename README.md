@@ -105,3 +105,11 @@ Please cite our paper if you find SMOKE is helpful for your research.
   year={2020}
 }
 ```
+
+
+----
+安装:
+pip install Pillow
+pip install yacs
+pip install scikit-image
+pip install torchvision
