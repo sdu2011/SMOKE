@@ -3,6 +3,8 @@ import csv
 import logging
 import subprocess
 
+from get_path import project_dir
+
 from smoke.utils.miscellaneous import mkdir
 
 ID_TYPE_CONVERSION = {
@@ -34,6 +36,7 @@ def do_kitti_detection_evaluation(dataset,
                                   output_folder,
                                   logger
                                   ):
+        
     predict_folder = os.path.join(output_folder, 'data')  # only recognize data
     mkdir(predict_folder)
 
@@ -45,10 +48,14 @@ def do_kitti_detection_evaluation(dataset,
 
     logger.info("Evaluate on KITTI dataset")
     output_dir = os.path.abspath(output_folder)
-    os.chdir('../smoke/data/datasets/evaluation/kitti/kitti_eval')
-    label_dir = getattr(dataset, 'label_dir')
+    os.chdir('smoke/data/datasets/evaluation/kitti/kitti_eval')
+    label_dir = project_dir + '/' + getattr(dataset, 'label_dir')
+
+    # /home/sc/keepgoing/SMOKE/smoke/data/datasets/evaluation/kitti/kitti_eval
+    
+
     if not os.path.isfile('evaluate_object_3d_offline'):
-        subprocess.Popen('g++ -O3 -DNDEBUG -o evaluate_object_3d_offline evaluate_object_3d_offline.cpp', shell=True)
+        subprocess.Popen('g++ -O3 -DNDEBUG -o evaluate_object_3d_offline evaluate_object.cpp', shell=True)
     command = "./evaluate_object_3d_offline {} {}".format(label_dir, output_dir)
     output = subprocess.check_output(command, shell=True, universal_newlines=True).strip()
     logger.info(output)
