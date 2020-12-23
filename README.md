@@ -112,4 +112,32 @@ Please cite our paper if you find SMOKE is helpful for your research.
 pip install Pillow
 pip install yacs
 pip install scikit-image
-pip install torchvision
+pip install torchvision==0.4.2
+pip install tqdm
+
+torch和torchvision的版本对应关系.
+```
+torch	torchvision	python
+master / nightly	master / nightly	>=3.6
+1.6.0	0.7.0	>=3.6
+1.5.1	0.6.1	>=3.5
+1.5.0	0.6.0	>=3.5
+1.4.0	0.5.0	==2.7, >=3.5, <=3.8
+1.3.1	0.4.2	==2.7, >=3.5, <=3.7
+1.3.0	0.4.1	==2.7, >=3.5, <=3.7
+1.2.0	0.4.0	==2.7, >=3.5, <=3.7
+1.1.0	0.3.0	==2.7, >=3.5, <=3.7
+<=1.0.1	0.2.2	==2.7, >=3.5, <=3.7
+```
+
+在项目根目录执行:
+生成训练/测试集描述文件.
+python scripts/gen_train.py
+python scripts/gen_test.py
+
+
+训练:
+python tools/plain_train_net.py --config-file "configs/smoke_gn_vector.yaml"
+
+推理:
+python tools/plain_train_net.py --eval-only --config-file "configs/smoke_gn_vector.yaml"
