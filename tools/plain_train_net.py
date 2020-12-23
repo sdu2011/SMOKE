@@ -19,8 +19,8 @@ from smoke.engine.test_net import run_test
 
 
 def train(cfg, model, device, distributed):
-    optimizer = make_optimizer(cfg, model)
-    scheduler = make_lr_scheduler(cfg, optimizer)
+    optimizer = make_optimizer(cfg, model) #优化器
+    scheduler = make_lr_scheduler(cfg, optimizer) #学习率调整策略
 
     arguments = {}
     arguments["iteration"] = 0
@@ -33,13 +33,15 @@ def train(cfg, model, device, distributed):
     extra_checkpoint_data = checkpointer.load(cfg.MODEL.WEIGHT)
     arguments.update(extra_checkpoint_data)
 
-    data_loader = make_data_loader(
+    torch.multiprocessing.set_sharing_strategy('file_system')
+    data_loader = make_data_loader(  #数据加载 
         cfg,
         is_train=True,
     )
 
     checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
 
+    #训练入口函数
     do_train(
         cfg,
         distributed,
