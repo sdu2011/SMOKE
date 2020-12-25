@@ -63,7 +63,7 @@ class KITTIDataset(Dataset):
 
         self.input_width = cfg.INPUT.WIDTH_TRAIN
         self.input_height = cfg.INPUT.HEIGHT_TRAIN
-        self.output_width = self.input_width // cfg.MODEL.BACKBONE.DOWN_RATIO
+        self.output_width = self.input_width // cfg.MODEL.BACKBONE.DOWN_RATIO  #下采样率
         self.output_height = self.input_height // cfg.MODEL.BACKBONE.DOWN_RATIO
         self.max_objs = cfg.DATASETS.MAX_OBJECTS
 
@@ -77,11 +77,13 @@ class KITTIDataset(Dataset):
         # load default parameter here
         original_idx = self.label_files[idx].replace(".txt", "")
         img_path = os.path.join(self.image_dir, self.image_files[idx])
-        img = Image.open(img_path)
+        img = Image.open(img_path)  #PIL读入的顺序是hwc rgb
         anns, K = self.load_annotations(idx)
 
         center = np.array([i / 2 for i in img.size], dtype=np.float32)
         size = np.array([i for i in img.size], dtype=np.float32)
+
+        print('origin center={},size={}'.format(center,size))
 
         """
         resize, horizontal flip, and affine augmentation are performed here.
@@ -94,6 +96,9 @@ class KITTIDataset(Dataset):
             center[0] = size[0] - center[0] - 1
             K[0, 2] = size[0] - K[0, 2] - 1
 
+        print('after flip,center={},size={}'.format(center,size))
+
+
         affine = False
         if (self.is_train) and (random.random() < self.aug_prob):
             affine = True
@@ -104,6 +109,8 @@ class KITTIDataset(Dataset):
 
             scale_ranges = np.arange(1 - scale, 1 + scale + 0.1, 0.1)
             size *= random.choice(scale_ranges)
+
+        print('after scale,center={},size={}'.format(center,size))
 
         center_size = [center, size]
         trans_affine = get_transfrom_matrix(
@@ -135,15 +142,25 @@ class KITTIDataset(Dataset):
             return img, target, original_idx
 
         heat_map = np.zeros([self.num_classes, self.output_height, self.output_width], dtype=np.float32)
+        print('heat_map shape={}'.format(heat_map.shape)) #预测类别 heat_map shape=(3, 96, 320)
         regression = np.zeros([self.max_objs, 3, 8], dtype=np.float32)
+        print('regression shape={}'.format(regression.shape)) #regression shape=(30, 3, 8) 3dbox的8个角点?
         cls_ids = np.zeros([self.max_objs], dtype=np.int32)
+        print('cls_ids shape={}'.format(cls_ids.shape))#cls_ids shape=(30,)
         proj_points = np.zeros([self.max_objs, 2], dtype=np.int32)
+        print('proj_points shape={}'.format(proj_points.shape))#proj_points shape=(30, 2) 3dbox在图像上的中心点(keypoint)
         p_offsets = np.zeros([self.max_objs, 2], dtype=np.float32)
+        print('p_offsets shape={}'.format(p_offsets.shape))#p_offsets shape=(30, 2) 中心点的
         dimensions = np.zeros([self.max_objs, 3], dtype=np.float32)
+        print('dimensions shape={}'.format(dimensions.shape)) #dimensions shape=(30, 3) box的长宽高
         locations = np.zeros([self.max_objs, 3], dtype=np.float32)
+        print('locations shape={}'.format(locations.shape)) #locations shape=(30, 3) 3d box的中心x,y,z
         rotys = np.zeros([self.max_objs], dtype=np.float32)
+        print('rotys shape={}'.format(rotys.shape)) #rotys shape=(30,) yaw角
         reg_mask = np.zeros([self.max_objs], dtype=np.uint8)
+        print('reg_mask shape={}'.format(reg_mask.shape)) # reg_mask shape=(30,) 掩码作用?
         flip_mask = np.zeros([self.max_objs], dtype=np.uint8)
+        print('flip_mask shape={}'.format(flip_mask.shape)) # flip_mask shape=(30,) 掩码作用?
 
         for i, a in enumerate(anns):
             a = a.copy()
@@ -155,6 +172,7 @@ class KITTIDataset(Dataset):
                 locs[0] *= -1
                 rot_y *= -1
 
+            #做了变换以后的位置
             point, box2d, box3d = encode_label(
                 K, rot_y, a["dimensions"], locs
             )
@@ -199,11 +217,16 @@ class KITTIDataset(Dataset):
         if self.transforms is not None:
             img, target = self.transforms(img, target)
 
+        #type of img is:<class 'torch.Tensor'>,target:<class 'smoke.structures.params_3d.ParamsList'>,original_idx:<class 'str'>
+        #print('type of img is:{},target:{},original_idx:{}'.format(type(img),type(target),type(original_idx)))
+        #target是一个自定义的类型.本质就是一个dict稍微包装了一下.
+
         return img, target, original_idx
 
     def load_annotations(self, idx):
         annotations = []
         file_name = self.label_files[idx]
+        #Pedestrian 0.00 0 -0.20 712.40 143.00 810.73 307.92 1.89 0.48 1.20 1.84 1.47 8.41 0.01
         fieldnames = ['type', 'truncated', 'occluded', 'alpha', 'xmin', 'ymin', 'xmax', 'ymax', 'dh', 'dw',
                       'dl', 'lx', 'ly', 'lz', 'ry']
 
