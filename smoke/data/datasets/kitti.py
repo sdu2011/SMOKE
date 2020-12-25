@@ -164,7 +164,7 @@ class KITTIDataset(Dataset):
 
         for i, a in enumerate(anns):
             a = a.copy()
-            cls = a["label"]
+            cls = a["label"]  #关注的类别对应的Id  TYPE_ID_CONVERSION
 
             locs = np.array(a["locations"])
             rot_y = np.array(a["rot_y"])
