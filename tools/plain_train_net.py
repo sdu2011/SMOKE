@@ -56,17 +56,23 @@ def train(cfg, model, device, distributed):
     )
 
 
+#smoke/config/defaults.py里有很多默认配置选项
 def setup(args):
+    print('setup: args={}'.format(args))
     cfg.merge_from_file(args.config_file)
+    print('setup1: cfg={}'.format(cfg))
+
     cfg.merge_from_list(args.opts)
     cfg.freeze()
     default_setup(cfg, args)
+
+    print('setup2: cfg={}'.format(cfg))
 
     return cfg
 
 
 def main(args):
-    cfg = setup(args)
+    cfg = setup(args) #生成配置
 
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
