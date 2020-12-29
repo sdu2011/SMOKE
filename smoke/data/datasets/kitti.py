@@ -61,8 +61,8 @@ class KITTIDataset(Dataset):
         self.shift_scale = cfg.INPUT.SHIFT_SCALE_TRAIN
         self.num_classes = len(self.classes)
 
-        self.input_width = cfg.INPUT.WIDTH_TRAIN
-        self.input_height = cfg.INPUT.HEIGHT_TRAIN
+        self.input_width = cfg.INPUT.WIDTH_TRAIN   # 1280
+        self.input_height = cfg.INPUT.HEIGHT_TRAIN # 384
         self.output_width = self.input_width // cfg.MODEL.BACKBONE.DOWN_RATIO  #下采样率
         self.output_height = self.input_height // cfg.MODEL.BACKBONE.DOWN_RATIO
         self.max_objs = cfg.DATASETS.MAX_OBJECTS
@@ -142,7 +142,7 @@ class KITTIDataset(Dataset):
             return img, target, original_idx
 
         heat_map = np.zeros([self.num_classes, self.output_height, self.output_width], dtype=np.float32)
-        print('heat_map shape={}'.format(heat_map.shape)) #预测类别 heat_map shape=(3, 96, 320)
+        print('heat_map shape={}'.format(heat_map.shape)) #预测类别 heat_map shape=(3, 96, 320)  #这里的3为类别数目      'Car': 0,'Cyclist': 1,'Pedestrian': 2,
         regression = np.zeros([self.max_objs, 3, 8], dtype=np.float32)
         print('regression shape={}'.format(regression.shape)) #regression shape=(30, 3, 8) 3dbox的8个角点?
         cls_ids = np.zeros([self.max_objs], dtype=np.int32)
@@ -172,7 +172,7 @@ class KITTIDataset(Dataset):
                 locs[0] *= -1
                 rot_y *= -1
 
-            #做了变换以后的位置
+            #投影点, 投影点围成的2d框 ,八个角点的3d坐标
             point, box2d, box3d = encode_label(
                 K, rot_y, a["dimensions"], locs
             )
@@ -186,14 +186,17 @@ class KITTIDataset(Dataset):
             if (0 < point[0] < self.output_width) and (0 < point[1] < self.output_height):
                 point_int = point.astype(np.int32)
                 p_offset = point - point_int
-                radius = gaussian_radius(h, w)
+                radius = gaussian_radius(h, w) #从centernet引入的思路  **iou通过保证预测的框的lt,rb两个点在GT BOX的lt,rb点的以r为半径的圆内即可.**
                 radius = max(0, int(radius))
-                heat_map[cls] = draw_umich_gaussian(heat_map[cls], point_int, radius)
 
-                cls_ids[i] = cls
-                regression[i] = box3d
-                proj_points[i] = point_int
-                p_offsets[i] = p_offset
+                print('before  heat_map[{}]={}'.format(cls,heat_map[cls]))
+                heat_map[cls] = draw_umich_gaussian(heat_map[cls], point_int, radius) # 得到高斯分布
+                print('after  heat_map[{}]={}'.format(cls,heat_map[cls]))
+
+                cls_ids[i] = cls   #cls_ids shape=(30,) 30为单张图片最大obj数量
+                regression[i] = box3d #regression shape=(30, 3, 8) 3dbox的8个角点
+                proj_points[i] = point_int #proj_points shape=(30, 2) 3dbox的(x,y-h/2,z)在图像上的投影  注意这里并非3dbox的中心 还不明白这里作者的意图
+                p_offsets[i] = p_offset # offset有啥用
                 dimensions[i] = np.array(a["dimensions"])
                 locations[i] = locs
                 rotys[i] = rot_y
