@@ -24,7 +24,7 @@ def get_channel_spec(reg_channels, name):
 
     return slice(s, e, 1)
 
-
+#
 @registry.SMOKE_PREDICTOR.register("SMOKEPredictor")
 class SMOKEPredictor(nn.Module):
     def __init__(self, cfg, in_channels):
@@ -44,6 +44,7 @@ class SMOKEPredictor(nn.Module):
         self.dim_channel = get_channel_spec(regression_channels, name="dim")
         self.ori_channel = get_channel_spec(regression_channels, name="ori")
 
+        # 分类
         self.class_head = nn.Sequential(
             nn.Conv2d(in_channels,
                       head_conv,
@@ -65,6 +66,7 @@ class SMOKEPredictor(nn.Module):
         # todo: what is datafill here
         self.class_head[-1].bias.data.fill_(-2.19)
 
+        # 回归
         self.regression_head = nn.Sequential(
             nn.Conv2d(in_channels,
                       head_conv,
@@ -88,6 +90,9 @@ class SMOKEPredictor(nn.Module):
         head_class = self.class_head(features)
         head_regression = self.regression_head(features)
 
+        # features shape:torch.Size([1, 64, 96, 320]),head_class shape:torch.Size([1, 3, 96, 320]),head_regression shape:torch.Size([1, 8, 96, 320])
+        print('features shape:{},head_class shape:{},head_regression shape:{}'.format(features.shape,head_class.shape,head_regression.shape))
+        
         head_class = sigmoid_hm(head_class)
         # (N, C, H, W)
         offset_dims = head_regression[:, self.dim_channel, ...].clone()
