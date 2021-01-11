@@ -74,6 +74,8 @@ class KITTIDataset(Dataset):
         return self.num_samples
 
     def __getitem__(self, idx):
+        # print('idx={}'.format(idx))
+
         # load default parameter here
         original_idx = self.label_files[idx].replace(".txt", "")
         img_path = os.path.join(self.image_dir, self.image_files[idx])
@@ -83,7 +85,7 @@ class KITTIDataset(Dataset):
         center = np.array([i / 2 for i in img.size], dtype=np.float32)
         size = np.array([i for i in img.size], dtype=np.float32)
 
-        print('origin center={},size={}'.format(center,size))
+        # print('origin center={},size={}'.format(center,size))
 
         """
         resize, horizontal flip, and affine augmentation are performed here.
@@ -96,7 +98,7 @@ class KITTIDataset(Dataset):
             center[0] = size[0] - center[0] - 1
             K[0, 2] = size[0] - K[0, 2] - 1
 
-        print('after flip,center={},size={}'.format(center,size))
+        # print('after flip,center={},size={}'.format(center,size))
 
 
         affine = False
@@ -110,7 +112,7 @@ class KITTIDataset(Dataset):
             scale_ranges = np.arange(1 - scale, 1 + scale + 0.1, 0.1)
             size *= random.choice(scale_ranges)
 
-        print('after scale,center={},size={}'.format(center,size))
+        # print('after scale,center={},size={}'.format(center,size))
 
         center_size = [center, size]
         trans_affine = get_transfrom_matrix(
@@ -125,6 +127,7 @@ class KITTIDataset(Dataset):
             resample=Image.BILINEAR,
         )
 
+        # 原图到特征图的变换矩阵
         trans_mat = get_transfrom_matrix(
             center_size,
             [self.output_width, self.output_height]
@@ -142,27 +145,28 @@ class KITTIDataset(Dataset):
             return img, target, original_idx
 
         heat_map = np.zeros([self.num_classes, self.output_height, self.output_width], dtype=np.float32)
-        print('heat_map shape={}'.format(heat_map.shape)) #预测类别 heat_map shape=(3, 96, 320)  #这里的3为类别数目      'Car': 0,'Cyclist': 1,'Pedestrian': 2,
+        #print('heat_map shape={}'.format(heat_map.shape)) #预测类别 heat_map shape=(3, 96, 320)  #这里的3为类别数目      'Car': 0,'Cyclist': 1,'Pedestrian': 2,
         regression = np.zeros([self.max_objs, 3, 8], dtype=np.float32)
-        print('regression shape={}'.format(regression.shape)) #regression shape=(30, 3, 8) 3dbox的8个角点?
+        #print('regression shape={}'.format(regression.shape)) #regression shape=(30, 3, 8) 3dbox的8个角点?
         cls_ids = np.zeros([self.max_objs], dtype=np.int32)
-        print('cls_ids shape={}'.format(cls_ids.shape))#cls_ids shape=(30,)
+        #print('cls_ids shape={}'.format(cls_ids.shape))#cls_ids shape=(30,)
         proj_points = np.zeros([self.max_objs, 2], dtype=np.int32)
-        print('proj_points shape={}'.format(proj_points.shape))#proj_points shape=(30, 2) 3dbox在图像上的中心点(keypoint)
+        #print('proj_points shape={}'.format(proj_points.shape))#proj_points shape=(30, 2) 3dbox在图像上的中心点(keypoint)
         p_offsets = np.zeros([self.max_objs, 2], dtype=np.float32)
-        print('p_offsets shape={}'.format(p_offsets.shape))#p_offsets shape=(30, 2) 中心点的
+        #print('p_offsets shape={}'.format(p_offsets.shape))#p_offsets shape=(30, 2) 中心点的
         dimensions = np.zeros([self.max_objs, 3], dtype=np.float32)
-        print('dimensions shape={}'.format(dimensions.shape)) #dimensions shape=(30, 3) box的长宽高
+        #print('dimensions shape={}'.format(dimensions.shape)) #dimensions shape=(30, 3) box的长宽高
         locations = np.zeros([self.max_objs, 3], dtype=np.float32)
-        print('locations shape={}'.format(locations.shape)) #locations shape=(30, 3) 3d box的中心x,y,z
+        #print('locations shape={}'.format(locations.shape)) #locations shape=(30, 3) 3d box的中心x,y,z
         rotys = np.zeros([self.max_objs], dtype=np.float32)
-        print('rotys shape={}'.format(rotys.shape)) #rotys shape=(30,) yaw角
+        #print('rotys shape={}'.format(rotys.shape)) #rotys shape=(30,) yaw角
         reg_mask = np.zeros([self.max_objs], dtype=np.uint8)
-        print('reg_mask shape={}'.format(reg_mask.shape)) # reg_mask shape=(30,) 掩码作用?
+        #print('reg_mask shape={}'.format(reg_mask.shape)) # reg_mask shape=(30,) 掩码作用?
         flip_mask = np.zeros([self.max_objs], dtype=np.uint8)
-        print('flip_mask shape={}'.format(flip_mask.shape)) # flip_mask shape=(30,) 掩码作用?
+        #print('flip_mask shape={}'.format(flip_mask.shape)) # flip_mask shape=(30,) 掩码作用?
 
         for i, a in enumerate(anns):
+            #print('i={}'.format(i)) #一张图中有多个目标
             a = a.copy()
             cls = a["label"]  #关注的类别对应的Id  TYPE_ID_CONVERSION
 
@@ -176,6 +180,10 @@ class KITTIDataset(Dataset):
             point, box2d, box3d = encode_label(
                 K, rot_y, a["dimensions"], locs
             )
+
+            # print('point:{} not in feature_map,feature_map size:{}'.format(point,(self.output_width,self.output_height)))
+
+            #把point从原图映射到特征图
             point = affine_transform(point, trans_mat)
             box2d[:2] = affine_transform(box2d[:2], trans_mat)
             box2d[2:] = affine_transform(box2d[2:], trans_mat)
@@ -183,15 +191,17 @@ class KITTIDataset(Dataset):
             box2d[[1, 3]] = box2d[[1, 3]].clip(0, self.output_height - 1)
             h, w = box2d[3] - box2d[1], box2d[2] - box2d[0]
 
+            print('point:{} not in feature_map,feature_map size:{}'.format(point,(self.output_width,self.output_height)))
+
             if (0 < point[0] < self.output_width) and (0 < point[1] < self.output_height):
                 point_int = point.astype(np.int32)
                 p_offset = point - point_int
                 radius = gaussian_radius(h, w) #从centernet引入的思路  **iou通过保证预测的框的lt,rb两个点在GT BOX的lt,rb点的以r为半径的圆内即可.**
                 radius = max(0, int(radius))
 
-                print('before  heat_map[{}]={}'.format(cls,heat_map[cls]))
-                heat_map[cls] = draw_umich_gaussian(heat_map[cls], point_int, radius) # 得到高斯分布
-                print('after  heat_map[{}]={}'.format(cls,heat_map[cls]))
+                # print('before  heat_map[{}]={}'.format(cls,heat_map[cls]))
+                heat_map[cls] = draw_umich_gaussian(heat_map[cls], point_int, radius) # 得到围绕point_int的高斯分布
+                # print('after  heat_map[{}]={}'.format(cls,heat_map[cls]))
 
                 cls_ids[i] = cls   #cls_ids shape=(30,) 30为单张图片最大obj数量
                 regression[i] = box3d #regression shape=(30, 3, 8) 3dbox的8个角点
@@ -200,22 +210,24 @@ class KITTIDataset(Dataset):
                 dimensions[i] = np.array(a["dimensions"])
                 locations[i] = locs
                 rotys[i] = rot_y
-                reg_mask[i] = 1 if not affine else 0
+                reg_mask[i] = 1 if not affine else 0  #是否做了仿射变换
                 flip_mask[i] = 1 if not affine and flipped else 0
+            else:
+                print('point:{} not in feature_map,feature_map size:{}'.format(point,(self.output_width,self.output_height)))
 
         target = ParamsList(image_size=img.size,
                             is_train=self.is_train)
-        target.add_field("hm", heat_map)
-        target.add_field("reg", regression)
-        target.add_field("cls_ids", cls_ids)
-        target.add_field("proj_p", proj_points)
-        target.add_field("dimensions", dimensions)
-        target.add_field("locations", locations)
-        target.add_field("rotys", rotys)
-        target.add_field("trans_mat", trans_mat)
-        target.add_field("K", K)
-        target.add_field("reg_mask", reg_mask)
-        target.add_field("flip_mask", flip_mask)
+        target.add_field("hm", heat_map)   #在feature map上围绕目标的3d投影点的高斯分布
+        target.add_field("reg", regression) #shape=(30, 3, 8)  3d box的八个角点. 30代表当前图像中可能的最大目标数量,8代表8个角点,3代表每个角点的位置x,y,z
+        target.add_field("cls_ids", cls_ids) # shape=(30,) 每个目标的类别信息
+        target.add_field("proj_p", proj_points) # shape=(30, 2) 2代表3d box中心在特征图上的投影点位置. (注意:这里并非在原始图像上的投影点位置,是先求出原图投影点位置,在仿射变换到特征图上)
+        target.add_field("dimensions", dimensions) # shape=(30, 3) box的长宽高
+        target.add_field("locations", locations)  #locations shape=(30, 3) 3d box的中心x,y,z
+        target.add_field("rotys", rotys)  # shape=(30,) yaw角
+        target.add_field("trans_mat", trans_mat) # 原图到特征图的仿射变换矩阵
+        target.add_field("K", K) # 相机内参
+        target.add_field("reg_mask", reg_mask) # reg_mask shape=(30,)  训练时用了数据增强,是否做了仿射变换
+        target.add_field("flip_mask", flip_mask) # flip_mask shape=(30,) 训练时用了数据增强,是否做了翻转 
 
         if self.transforms is not None:
             img, target = self.transforms(img, target)
