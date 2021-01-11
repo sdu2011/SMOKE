@@ -6,26 +6,42 @@ PI = 3.14159
 
 
 def encode_label(K, ry, dims, locs):
+    # !!!!仅仅只有3d center和长宽高是不能确定一个3d目标的位姿的.还要有yaw角(自动驾驶中认为)
     l, h, w = dims[0], dims[1], dims[2]
     x, y, z = locs[0], locs[1], locs[2]
+    # print('(l,h,w)=({},{},{})'.format(l,h,w))
+    # print('(x,y,z)=({},{},{})'.format(x,y,z))
 
+    # 假设一3d obj中心在xyz坐标系的原点,yaw=0. 计算其八个角点的坐标.分两步
+
+    # 1.假设左下角的点为坐标原点(0,0,0) 构建出这个3d box
     x_corners = [0, l, l, l, l, 0, 0, 0]
     y_corners = [0, 0, h, h, 0, 0, h, h]
     z_corners = [0, 0, 0, w, w, w, w, 0]
+    #八个角点(0,0,0) (l,0,0) (l,h,0) ....(0,h,0)
 
+    # 2. 把3d box的中心点移动到xyz坐标原点位置
     x_corners += - np.float32(l) / 2
     y_corners += - np.float32(h)
     z_corners += - np.float32(w) / 2
+    ##############################################################
 
     corners_3d = np.array([x_corners, y_corners, z_corners])
+    # print('corners_3d shape={}'.format(corners_3d.shape))
+
+    # 加上yaw角,计算出3d obj的坐标.
     rot_mat = np.array([[np.cos(ry), 0, np.sin(ry)],
                         [0, 1, 0],
                         [-np.sin(ry), 0, np.cos(ry)]])
     corners_3d = np.matmul(rot_mat, corners_3d)
-    corners_3d += np.array([x, y, z]).reshape([3, 1])
+    ##############################################################
 
-    loc_center = np.array([x, y - h / 2, z])
-    proj_point = np.matmul(K, loc_center)
+    # 前面假设的3d obj的中心点在原点,移动回标签文件中真正的中心点(x,y,z)的位置. 
+    corners_3d += np.array([x, y, z]).reshape([3, 1])
+    ###############################################################
+
+    loc_center = np.array([x, y - h / 2, z])  ##这里y为什么要减去h/2? 如果目标是个人的话,y-h/2这应该就是人的头顶的坐标.
+    proj_point = np.matmul(K, loc_center) ##
     proj_point = proj_point[:2] / proj_point[2]
 
     corners_2d = np.matmul(K, corners_3d)
@@ -33,6 +49,7 @@ def encode_label(K, ry, dims, locs):
     box2d = np.array([min(corners_2d[0]), min(corners_2d[1]),
                       max(corners_2d[0]), max(corners_2d[1])])
 
+    #返回的是loc_center的投影点,八个角点投影点构成的2d box,8个3d 角点.
     return proj_point, box2d, corners_3d
 
 
@@ -126,6 +143,7 @@ class SMOKECoder():
         '''
         Transform depth offset to depth
         '''
+        #DEPTH_REFERENCE: (28.01, 16.32)  这里的depth_ref的值是根据经验还是什么来的?
         depth = depths_offset * self.depth_ref[1] + self.depth_ref[0]
 
         return depth

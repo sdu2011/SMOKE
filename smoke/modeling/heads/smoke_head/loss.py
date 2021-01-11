@@ -6,6 +6,7 @@ from smoke.layers.focal_loss import FocalLoss
 from smoke.layers.utils import select_point_of_interest
 
 
+#核心类.重点搞清楚
 class SMOKELossComputation():
     def __init__(self,
                  smoke_coder,
@@ -42,6 +43,8 @@ class SMOKELossComputation():
                                           reg_mask=reg_mask,
                                           flip_mask=flip_mask)
 
+
+    #由网络的输出得到3d box的center(x,y,z) dim(h,w,l) 
     def prepare_predictions(self, targets_variables, pred_regression):
         batch, channel = pred_regression.shape[0], pred_regression.shape[1]
         targets_proj_points = targets_variables["proj_points"]
@@ -53,12 +56,16 @@ class SMOKELossComputation():
         pred_regression_pois = pred_regression_pois.view(-1, channel)
 
         # FIXME: fix hard code here
+        # 回归分支预测的八个参数的含义
         pred_depths_offset = pred_regression_pois[:, 0]
         pred_proj_offsets = pred_regression_pois[:, 1:3]
         pred_dimensions_offsets = pred_regression_pois[:, 3:6]
         pred_orientation = pred_regression_pois[:, 6:]
 
+        #计算距离
         pred_depths = self.smoke_coder.decode_depth(pred_depths_offset)
+        
+        #计算中心点坐标
         pred_locations = self.smoke_coder.decode_location(
             targets_proj_points,
             pred_proj_offsets,
@@ -66,13 +73,17 @@ class SMOKELossComputation():
             targets_variables["K"],
             targets_variables["trans_mat"]
         )
+
+        #计算目标的三围尺寸
         pred_dimensions = self.smoke_coder.decode_dimension(
             targets_variables["cls_ids"],
             pred_dimensions_offsets,
         )
-        # we need to change center location to bottom location
+        
+        # we need to change center location to bottom location #这句的注释有问题吧 应该是把bottom location变回为center location
         pred_locations[:, 1] += pred_dimensions[:, 1] / 2
 
+        #计算yaw角
         pred_rotys = self.smoke_coder.decode_orientation(
             pred_orientation,
             targets_variables["locations"],
@@ -110,10 +121,14 @@ class SMOKELossComputation():
 
     def __call__(self, predictions, targets):
         pred_heatmap, pred_regression = predictions[0], predictions[1]
+        #pred_heatmap shape=torch.Size([1, 3, 96, 320]), pred_regression shape=torch.Size([1, 8, 96, 320])
+        print('pred_heatmap shape={}, pred_regression shape={}'.format(pred_heatmap.shape,pred_regression.shape))
 
+        # 真值对应的heatmap和regression
         targets_heatmap, targets_regression, targets_variables \
             = self.prepare_targets(targets)
 
+        # 根据预测值计算出来的3d box位置信息
         predict_boxes3d = self.prepare_predictions(targets_variables, pred_regression)
 
         hm_loss = self.cls_loss(pred_heatmap, targets_heatmap) * self.loss_weight[0]
