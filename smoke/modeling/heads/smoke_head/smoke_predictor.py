@@ -94,19 +94,19 @@ class SMOKEPredictor(nn.Module):
         head_regression = self.regression_head(features)
 
         # features shape:torch.Size([1, 64, 96, 320]),head_class shape:torch.Size([1, 3, 96, 320]),head_regression shape:torch.Size([1, 8, 96, 320])
-        print('features shape:{},head_class shape:{},head_regression shape:{}'.format(features.shape,head_class.shape,head_regression.shape))
+        # print('features shape:{},head_class shape:{},head_regression shape:{}'.format(features.shape,head_class.shape,head_regression.shape))
 
         head_class = sigmoid_hm(head_class)
 
-        print('dim_channel={},ori_channel={}'.format(self.dim_channel,self.ori_channel))
+        # print('dim_channel={},ori_channel={}'.format(self.dim_channel,self.ori_channel))
         # (N, C, H, W)
         offset_dims = head_regression[:, self.dim_channel, ...].clone()
         head_regression[:, self.dim_channel, ...] = torch.sigmoid(offset_dims) - 0.5 # (δz, δxc δyc, δh δw δl, sin α cos α)中的δh δw δl
-        print('offset_dims shape={}'.format(offset_dims.shape))
+        # print('offset_dims shape={}'.format(offset_dims.shape))
 
         vector_ori = head_regression[:, self.ori_channel, ...].clone()
         head_regression[:, self.ori_channel, ...] = F.normalize(vector_ori) # (δz, δxc δyc, δh δw δl, sin α cos α)中的sin α cos α
-        print('vector_ori shape={}'.format(vector_ori.shape))
+        # print('vector_ori shape={}'.format(vector_ori.shape))
 
         return [head_class, head_regression]
 
