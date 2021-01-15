@@ -38,6 +38,7 @@ def train(cfg, model, device, distributed):
         cfg,
         is_train=True,
     )
+    print('data_loader type is:{}'.format(type(data_loader)))
 
     checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
 
@@ -71,12 +72,37 @@ def setup(args):
     return cfg
 
 
+def inference_on_one_img(model,img):
+    # 准备输入
+
+    # 
+    # output = model(images, targets)
+    pass
+    
 def main(args):
     cfg = setup(args) #生成配置
 
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
     model.to(device)
+
+    print('args.eval_img={}'.format(args.eval_img))
+
+    if args.eval_img:
+        print(args.eval_img)
+
+        # 载入模型
+        checkpointer = DetectronCheckpointer(
+            cfg, model, save_dir=cfg.OUTPUT_DIR
+        )
+        ckpt = cfg.MODEL.WEIGHT if args.ckpt is None else args.ckpt
+        _ = checkpointer.load(ckpt, use_latest=args.ckpt is None)
+        
+        # 数据准备
+        img_path = 'datasets/kitti/training/image_2/{}'.format(args.eval_img)
+        label_path = 'datasets/kitti/training/image_2/{}.txt'.format(args.eval_img)
+
+        return
 
     if args.eval_only:
         checkpointer = DetectronCheckpointer(
@@ -94,7 +120,6 @@ def main(args):
         )
 
     train(cfg, model, device, distributed)
-
 
 if __name__ == '__main__':
     args = default_argument_parser().parse_args()
