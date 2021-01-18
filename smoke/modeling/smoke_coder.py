@@ -40,7 +40,7 @@ def encode_label(K, ry, dims, locs):
     corners_3d += np.array([x, y, z]).reshape([3, 1])
     ###############################################################
 
-    loc_center = np.array([x, y - h / 2, z])  ##这里y为什么要减去h/2? 如果目标是个人的话,y-h/2这应该就是人的头顶的坐标.
+    loc_center = np.array([x, y - h / 2, z])  ##kitti中标注的坐标y方向是接触地面的点的值.而不是目标中心位置! 所以要减去h/2
     proj_point = np.matmul(K, loc_center) ##
     proj_point = proj_point[:2] / proj_point[2]
 
